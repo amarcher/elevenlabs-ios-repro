@@ -25,8 +25,9 @@ export default function App() {
     <div style={{ fontFamily: 'system-ui', padding: 20, maxWidth: 800, margin: '0 auto' }}>
       <h1 style={{ fontSize: 18 }}>ElevenLabs iOS Safari Repro</h1>
       <p style={{ color: '#666', fontSize: 14 }}>
-        Left panel uses ConversationProvider (broken on iOS).
-        Right panel uses Conversation.startSession directly (works on iOS).
+        Testing <b>@elevenlabs/react@1.6.0</b> (includes PR #672 ConversationProvider lifecycle fix).
+        Left panel uses ConversationProvider.
+        Right panel uses Conversation.startSession directly.
       </p>
       {!AGENT_ID && (
         <p style={{ color: 'red', fontWeight: 'bold' }}>
@@ -62,14 +63,37 @@ function ProviderPanel() {
     addLog('provider', `✅ test_tool CALLED: ${JSON.stringify(params)}`)
     return 'Tool executed successfully'
   })
+  useConversationClientTool('navigate_to_planet', (params) => {
+    addLog('provider', `✅ navigate_to_planet CALLED: ${JSON.stringify(params)}`)
+    return 'Navigated successfully'
+  })
+  useConversationClientTool('navigate_to_moon', (params) => {
+    addLog('provider', `✅ navigate_to_moon CALLED: ${JSON.stringify(params)}`)
+    return 'Navigated successfully'
+  })
+  useConversationClientTool('navigate_to_sun', (params) => {
+    addLog('provider', `✅ navigate_to_sun CALLED: ${JSON.stringify(params)}`)
+    return 'Navigated successfully'
+  })
+  useConversationClientTool('go_back', (params) => {
+    addLog('provider', `✅ go_back CALLED: ${JSON.stringify(params)}`)
+    return 'Navigated successfully'
+  })
 
   const toggle = async () => {
     if (!AGENT_ID) return
     if (conversation.status === 'connected') {
       conversation.endSession()
     } else {
+      addLog('provider', 'priming mic via getUserMedia...')
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true })
+        addLog('provider', 'mic primed')
+      } catch (e) {
+        addLog('provider', `getUserMedia failed: ${e}`)
+      }
       addLog('provider', 'calling startSession...')
-      await conversation.startSession({ agentId: AGENT_ID })
+      await conversation.startSession({ agentId: AGENT_ID, connectionType: 'websocket' })
       addLog('provider', 'startSession returned')
     }
   }
@@ -112,6 +136,13 @@ function DirectPanel() {
     }
 
     setStatus('connecting')
+    addLog('direct', 'priming mic via getUserMedia...')
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true })
+      addLog('direct', 'mic primed')
+    } catch (e) {
+      addLog('direct', `getUserMedia failed: ${e}`)
+    }
     addLog('direct', 'calling Conversation.startSession...')
 
     try {
@@ -122,6 +153,22 @@ function DirectPanel() {
           test_tool: (params: unknown) => {
             addLog('direct', `✅ test_tool CALLED: ${JSON.stringify(params)}`)
             return 'Tool executed successfully'
+          },
+          navigate_to_planet: (params: unknown) => {
+            addLog('direct', `✅ navigate_to_planet CALLED: ${JSON.stringify(params)}`)
+            return 'Navigated successfully'
+          },
+          navigate_to_moon: (params: unknown) => {
+            addLog('direct', `✅ navigate_to_moon CALLED: ${JSON.stringify(params)}`)
+            return 'Navigated successfully'
+          },
+          navigate_to_sun: (params: unknown) => {
+            addLog('direct', `✅ navigate_to_sun CALLED: ${JSON.stringify(params)}`)
+            return 'Navigated successfully'
+          },
+          go_back: (params: unknown) => {
+            addLog('direct', `✅ go_back CALLED: ${JSON.stringify(params)}`)
+            return 'Navigated successfully'
           },
         },
         onConnect: () => { setStatus('connected'); addLog('direct', 'onConnect') },
@@ -173,6 +220,12 @@ function addLog(source: string, msg: string) {
   if (logs.length > 200) logs.shift()
   logListeners.forEach(fn => fn())
   console.log(`[${source}] ${msg}`)
+  fetch('/__log', {
+    method: 'POST',
+    headers: { 'content-type': 'text/plain' },
+    body: `[${source}] ${msg}`,
+    keepalive: true,
+  }).catch(() => {})
 }
 
 function LogPanel() {

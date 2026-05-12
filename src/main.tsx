@@ -5,7 +5,11 @@ import App from './App'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ConversationProvider>
+    <ConversationProvider
+      onError={(message, error) => {
+        console.error('[ConversationProvider onError]', message, error)
+      }}
+    >
       <App />
     </ConversationProvider>
   </StrictMode>,
